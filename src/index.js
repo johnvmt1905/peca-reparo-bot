@@ -1,4 +1,5 @@
 require('dotenv').config();
+const http = require('http');
 const { App } = require('@slack/bolt');
 
 const { registerCommand } = require('./handlers/command');
@@ -27,8 +28,21 @@ registerFormSubmit(app);
 registerSendToTrello(app);
 registerPecaSubmit(app);
 
+// Servidor HTTP separado, só pra health check (Render/UptimeRobot). Em
+// Socket Mode o Bolt não abre porta HTTP nenhuma sozinho — sem isso, o
+// Render nunca detecta o serviço como "no ar" e o ping de manter-acordado
+// não tem o que responder.
+const port = process.env.PORT || 3000;
+http
+  .createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('ok');
+  })
+  .listen(port, '0.0.0.0', () => {
+    console.log(`Health check HTTP ouvindo em 0.0.0.0:${port}`);
+  });
+
 (async () => {
-  const port = process.env.PORT || 3000;
-  await app.start(port);
+  await app.start();
   console.log(`⚡️ pecareparo-bot rodando (socket mode: ${process.env.USE_SOCKET_MODE === 'true'})`);
 })();
