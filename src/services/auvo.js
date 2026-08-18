@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { extrairMaquinaENs } = require('./maquinaNs');
+const { extrairMaquinaENs } = require('./maquinaNS');
 
 const BASE_URL = process.env.AUVO_BASE_URL || 'https://api.auvo.com.br/v2';
 
