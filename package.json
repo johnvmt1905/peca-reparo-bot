@@ -1,0 +1,16 @@
+{
+  "name": "pecareparo-bot",
+  "version": "0.1.0",
+  "description": "Bot Slack (/pecareparo) integrado a Trello e Auvo para abertura de chamados de reparo de peça",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "@slack/bolt": "^3.19.0",
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "form-data": "^4.0.0"
+  }
+}
