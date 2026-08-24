@@ -8,6 +8,22 @@ const { registerFormSubmit } = require('./handlers/formSubmit');
 const { registerSendToTrello } = require('./handlers/sendToTrello');
 const { registerPecaSubmit } = require('./handlers/pecaSubmit');
 
+// Bug conhecido do @slack/socket-mode (StateMachine "Unhandled event 'server
+// explicit disconnect' in state 'connecting'") — acontece quando o Slack
+// manda um disconnect bem na hora da reconexão. Só tem correção definitiva
+// no Bolt v4 (major, com possíveis breaking changes). Enquanto isso, o mais
+// seguro é deixar o processo cair de forma limpa e o Render reiniciar
+// sozinho (ele já faz isso por padrão), em vez de deixar o processo travado
+// num estado inconsistente.
+process.on('uncaughtException', (err) => {
+  console.error('Exceção fatal — reiniciando o processo:', err);
+  process.exit(1);
+});
+process.on('unhandledRejection', (err) => {
+  console.error('Promise rejeitada sem tratamento — reiniciando o processo:', err);
+  process.exit(1);
+});
+
 const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
   signingSecret: process.env.SLACK_SIGNING_SECRET,
