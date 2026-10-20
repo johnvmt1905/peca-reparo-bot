@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { CATEGORIAS } = require('../config/categorias');
 const { extractFormValues } = require('../blocks/extractFormValues');
 
 function registerFormSubmit(app) {
@@ -13,6 +14,8 @@ function registerFormSubmit(app) {
       // cliente e técnico vêm da Auvo, guardados no private_metadata
       cliente: meta.cliente || '',
       tecnico: meta.tecnico || '',
+      customerId: meta.customerId || null,
+      equipmentsIds: meta.equipmentsIds || [],
       // máquina/N.S: usa o que está no modal se o usuário editou; senão cai
       // pro valor resolvido pela Auvo guardado no private_metadata — o
       // Slack não atualiza state.values quando o initial_value é setado
@@ -23,6 +26,7 @@ function registerFormSubmit(app) {
     };
 
     const tipoLabel = registro.tipo === 'continuo' ? 'Contínuo' : 'Intermitente';
+    const categoriaLabel = CATEGORIAS[registro.categoria]?.label || '';
 
     if (!meta.responseUrl) {
       console.error('response_url ausente — não é possível postar o resumo na conversa de origem.');
@@ -47,7 +51,7 @@ function registerFormSubmit(app) {
               `*Peça:* ${registro.peca}\n` +
               `*Defeito:* ${registro.defeito}\n` +
               `*Máquina:* ${registro.maquina}  |  *N.S.:* ${registro.nsMaquina}\n` +
-              `*Tipo:* ${tipoLabel}\n` +
+              `*Tipo:* ${tipoLabel}  |  *Categoria:* ${categoriaLabel}\n` +
               `*Tarefa:* ${registro.tarefa}\n` +
               `*Cliente:* ${registro.cliente || '_não encontrado_'}  |  *Técnico:* ${registro.tecnico || '_não encontrado_'}`,
           },

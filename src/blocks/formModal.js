@@ -11,9 +11,13 @@
  * @param {string} prefill.maquina
  * @param {string} prefill.nsMaquina
  * @param {string} prefill.tipo - 'intermitente' | 'continuo'
+ * @param {string} prefill.categoria - 'subconjunto' | 'eletronica' | 'outros'
  * @param {boolean} prefill.buscando - true enquanto aguarda resposta da Auvo
  */
 function buildFormModal(prefill = {}) {
+  // Sufixo que muda a cada atualização do modal: sem isso o Slack mantém o valor
+  // antigo dos campos (mesmo block_id) e ignora o initial_value preenchido pela Auvo.
+  const rev = prefill.rev ? `_${prefill.rev}` : '';
   // Cliente e Técnico só como referência automática da Auvo aqui — a edição
   // do Cliente (pra encurtar nome pro título do card) acontece no modal 2.
   const clienteTecnicoBlock = prefill.buscando
@@ -40,6 +44,8 @@ function buildFormModal(prefill = {}) {
       maquina: prefill.maquina || '',
       nsMaquina: prefill.nsMaquina || '',
       responseUrl: prefill.responseUrl || '',
+      customerId: prefill.customerId || null,
+      equipmentsIds: prefill.equipmentsIds || [],
     }),
     title: { type: 'plain_text', text: 'Peça de Reparo' },
     submit: { type: 'plain_text', text: 'Registrar' },
@@ -81,8 +87,9 @@ function buildFormModal(prefill = {}) {
       },
       {
         type: 'input',
-        block_id: 'maquina_block',
+        block_id: `maquina_block${rev}`,
         label: { type: 'plain_text', text: 'Máquina' },
+        hint: { type: 'plain_text', text: 'Preenchida automaticamente pela tarefa do Auvo' },
         element: {
           type: 'plain_text_input',
           action_id: 'maquina_input',
@@ -91,8 +98,9 @@ function buildFormModal(prefill = {}) {
       },
       {
         type: 'input',
-        block_id: 'ns_maquina_block',
+        block_id: `ns_maquina_block${rev}`,
         label: { type: 'plain_text', text: 'N.S. da Máquina' },
+        hint: { type: 'plain_text', text: 'Preenchido automaticamente pela tarefa do Auvo' },
         element: {
           type: 'plain_text_input',
           action_id: 'ns_maquina_input',
@@ -115,6 +123,25 @@ function buildFormModal(prefill = {}) {
           options: [
             { text: { type: 'plain_text', text: 'Intermitente' }, value: 'intermitente' },
             { text: { type: 'plain_text', text: 'Contínuo' }, value: 'continuo' },
+          ],
+        },
+      },
+      {
+        type: 'input',
+        block_id: 'categoria_block',
+        label: { type: 'plain_text', text: 'Categoria' },
+        element: {
+          type: 'static_select',
+          action_id: 'categoria_input',
+          initial_option: {
+            subconjunto: { text: { type: 'plain_text', text: 'Subconjunto' }, value: 'subconjunto' },
+            eletronica: { text: { type: 'plain_text', text: 'Peça Eletrônica' }, value: 'eletronica' },
+            outros: { text: { type: 'plain_text', text: 'Outros' }, value: 'outros' },
+          }[prefill.categoria],
+          options: [
+            { text: { type: 'plain_text', text: 'Subconjunto' }, value: 'subconjunto' },
+            { text: { type: 'plain_text', text: 'Peça Eletrônica' }, value: 'eletronica' },
+            { text: { type: 'plain_text', text: 'Outros' }, value: 'outros' },
           ],
         },
       },

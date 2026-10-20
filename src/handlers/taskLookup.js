@@ -16,18 +16,21 @@ function registerTaskLookup(app) {
     await client.views.update({
       view_id: view.id,
       hash: view.hash,
-      view: buildFormModal({ ...values, responseUrl: meta.responseUrl, buscando: true }),
+      view: buildFormModal({ ...values, responseUrl: meta.responseUrl, customerId: meta.customerId, equipmentsIds: meta.equipmentsIds, rev: Date.now(), buscando: true }),
     });
 
-    const { cliente, tecnico, maquina, nsMaquina, encontrado } = await getTaskInfo(values.tarefa);
+    const { cliente, tecnico, maquina, nsMaquina, customerId, equipmentsIds, encontrado } = await getTaskInfo(values.tarefa);
 
     await client.views.update({
       view_id: view.id,
       view: buildFormModal({
         ...values,
         responseUrl: meta.responseUrl,
+        rev: Date.now(),
         cliente: encontrado ? cliente : '',
         tecnico: encontrado ? tecnico : '',
+        customerId: encontrado ? customerId : null,
+        equipmentsIds: encontrado ? equipmentsIds : [],
         maquina: encontrado && maquina ? maquina : values.maquina,
         nsMaquina: encontrado && nsMaquina ? nsMaquina : values.nsMaquina,
       }),

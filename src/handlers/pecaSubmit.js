@@ -1,5 +1,7 @@
 const axios = require('axios');
-const { createCard, attachFile } = require('../services/trello');
+const { createCard, attachFile, getLabelIdByName } = require('../services/trello');
+const { criarOSInterna } = require('../services/auvo');
+const { CATEGORIAS } = require('../config/categorias');
 const { downloadSlackFile } = require('../services/slackFiles');
 
 function ultimosDigitos(texto, n = 4) {
@@ -23,12 +25,13 @@ function montarDescricao(registro) {
     `Nº NOTA FISCAL: `,
     `TÉCNICO: ${registro.tecnico || ''}`,
     `TAREFA: ${registro.tarefa || ''}`,
-    `Nº O.S Gzero: `,
+    `Nº O.S Gzero: ${registro.osNumero || ''}`,
+    ...(registro.tarefasInternas ? [`TAREFAS INTERNAS: ${registro.tarefasInternas}`] : []),
     `ORÇ. FORNECEDOR: `,
     `ORÇ. GZERO: `,
     `LOGISTICA / O.S. FORNECEDOR: `,
     `OBS: `,
-  ].join('\n');
+  ].join('\n\n');
 }
 
 function registerPecaSubmit(app) {
@@ -50,11 +53,50 @@ function registerPecaSubmit(app) {
       registro.modelo
     )} - ${ultimosDigitos(registro.nsPeca)}`;
 
+    // Subconjunto / Peça Eletrônica: cria a OS (+ 2 tarefas) na Auvo e
+    // descobre a etiqueta do Trello. Falha aqui NÃO impede o card — só vira aviso.
+    const avisos = [];
+    const cat = CATEGORIAS[registro.categoria];
+    const labelIds = [];
+
+    if (cat?.auvo) {
+      try {
+        const os = await criarOSInterna({
+          categoria: registro.categoria,
+          customerId: registro.customerId,
+          // Ex.: "LAB MECÂNICO INTERNO - <defeito informado no modal 1>"
+          descricao: [cat.descricaoOS, (registro.defeito || '').replace(/\s+/g, ' ').trim()].filter(Boolean).join(' - '),
+          resumo: `${registro.cliente || clienteTitulo} | ${registro.peca} | Tarefa origem ${registro.tarefa}`,
+          equipmentsIds: registro.equipmentsIds || [],
+        });
+        if (os) {
+          registro.osNumero = String(os.projectCode);
+          const nomes = ['DESMONTAGEM', 'MONTAGEM'];
+          avisos.push(...(os.avisos || []));
+          registro.tarefasInternas = os.taskIds.map((id, i) => `${id} (${nomes[i] || 'EXTRA'})`).join(' / ');
+        }
+      } catch (err) {
+        console.error('Falha ao criar OS na Auvo:', err.response?.data || err.message);
+        avisos.push(`OS/tarefas não criadas na Auvo: ${JSON.stringify(err.response?.data || err.message)}`);
+      }
+    }
+
+    if (cat?.trelloLabel) {
+      try {
+        const id = await getLabelIdByName(cat.trelloLabel);
+        if (id) labelIds.push(id);
+        else avisos.push(`etiqueta "${cat.trelloLabel}" não encontrada no Trello`);
+      } catch (err) {
+        console.error('Falha ao buscar etiqueta:', err.response?.data || err.message);
+        avisos.push('não consegui aplicar a etiqueta no Trello');
+      }
+    }
+
     const descricao = montarDescricao(registro);
 
     let card;
     try {
-      card = await createCard({ title: titulo, description: descricao });
+      card = await createCard({ title: titulo, description: descricao, labelIds });
     } catch (err) {
       // Sem isso, uma falha na criação do card ficava completamente
       // silenciosa — o modal fechava e nada mais acontecia.
@@ -89,7 +131,10 @@ function registerPecaSubmit(app) {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `:white_check_mark: *Enviado para o Trello*\n<${card.url}|${titulo}>`,
+              text:
+                `:white_check_mark: *Enviado para o Trello*\n<${card.url}|${titulo}>` +
+                (registro.osNumero ? `\n*OS Auvo:* ${registro.osNumero}  |  *Tarefas:* ${registro.tarefasInternas}` : '') +
+                (avisos.length ? `\n:warning: ${avisos.join(' | ')}` : ''),
             },
           },
         ],
